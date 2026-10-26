@@ -1,0 +1,234 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazilian]{babel}
+\usepackage{helvet}
+\renewcommand{\familydefault}{\sfdefault}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage[table]{xcolor}
+\usepackage{array}
+\usepackage{caption}
+\definecolor{cabecalho}{HTML}{1F3A5F}
+\definecolor{faixa}{HTML}{EAF0F7}
+\definecolor{borda}{HTML}{8FA3BA}
+\captionsetup{labelsep=endash,font=small,labelfont=bf,textfont=bf,justification=centering,skip=6pt}
+\setlength{\arrayrulewidth}{0.6pt}
+\arrayrulecolor{borda}
+\renewcommand{\arraystretch}{1.3}
+\newcommand{\cab}[1]{\textcolor{white}{\bfseries #1}}
+\newcommand{\fonte}{\par\vspace{3pt}{\footnotesize Fonte: elaborado por Cauan.}\par\vspace{6pt}}
+\usepackage{fancyvrb}
+\usepackage{setspace}
+\usepackage{indentfirst}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage[top=3cm,left=3cm,bottom=2cm,right=2cm]{geometry}
+\usepackage[hidelinks]{hyperref}
+
+\onehalfspacing
+\setlength{\parindent}{1.25cm}
+\setlength{\parskip}{0pt}
+\sloppy
+
+\titleformat{\section}{\normalfont\fontsize{12}{14}\bfseries\MakeUppercase}{\thesection}{1em}{}
+\titleformat{\subsection}{\normalfont\fontsize{12}{14}\bfseries}{\thesubsection}{1em}{}
+\titleformat{\paragraph}[runin]{\normalfont\bfseries}{}{0pt}{}
+\titlespacing*{\section}{0pt}{12pt}{12pt}
+\titlespacing*{\subsection}{0pt}{12pt}{12pt}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[R]{\thepage}
+\renewcommand{\headrulewidth}{0pt}
+\fancypagestyle{plain}{\fancyhf{}\fancyhead[R]{\thepage}\renewcommand{\headrulewidth}{0pt}}
+
+\renewcommand{\contentsname}{\centering SUMÁRIO}
+
+\begin{document}
+
+\begin{titlepage}
+\thispagestyle{empty}
+\centering
+\singlespacing
+{\bfseries\large UNIVERSIDADE DE FORTALEZA}\par
+\vspace{0.4cm}
+Disciplina: Aspectos Teóricos da Computação\par
+\vspace{\stretch{1.2}}
+{\bfseries\Large SIMULADOR DE AUTÔMATO COM PILHA\\E ANÁLISE LÉXICA\par}
+\vspace{\stretch{2}}
+\raggedright
+\textbf{Cauan Gomes dos Santos Barbosa}\par
+Matrícula: 2420519\par
+\vspace{2cm}
+\centering
+Fortaleza\par
+\the\year\par
+\end{titlepage}
+
+\pagestyle{fancy}
+\tableofcontents
+\newpage
+
+\section*{Introdução}
+\addcontentsline{toc}{section}{INTRODUÇÃO}
+
+Este trabalho apresenta um simulador de autômato com pilha (PDA) acompanhado de um analisador léxico. O problema escolhido é a verificação de delimitadores aninhados \texttt{()}, \texttt{\{\}} e \texttt{[]} (blocos de escopo) em código-fonte, linguagem que apresenta estrutura recursiva e não pode ser reconhecida por um autômato finito.
+
+O código está na pasta \texttt{simulador/}: \texttt{lexer.py} (analisador léxico), \texttt{pda.py} (autômato com pilha), \texttt{fa.py} (autômato finito para comparação), \texttt{simulador.py} (interface de linha de comando) e \texttt{test\_simulador.py} (testes). Requer apenas Python 3.8+.
+
+O código-fonte completo está disponível no repositório do projeto no GitHub:
+
+\begin{center}
+\url{https://github.com/cauang/SAPA}
+\end{center}
+
+\newpage
+
+\section{Definição formal da linguagem}
+
+Sobre o alfabeto de tokens $\Sigma = \{(,\ ),\ \{,\ \},\ [,\ ],\ x\}$, onde $x$ representa qualquer outro token (identificador, número, operador etc.), a linguagem é a de Dyck com três tipos de delimitador, gerada pela gramática livre de contexto
+\[
+S \rightarrow \varepsilon \mid S\,S \mid x \mid (\,S\,) \mid \{\,S\,\} \mid [\,S\,]
+\]
+Seja $L = \{w \in \Sigma^* \mid w \text{ é gerada por } S\}$. $L$ é livre de contexto e \textbf{não é regular}.
+
+\section{Descrição do autômato com pilha}
+
+PDA determinístico $M = (Q, \Sigma, \Gamma, \delta, q_0, Z_0, F)$, com aceitação por \textbf{estado final}:
+\begin{itemize}
+  \item $Q = \{q_0, q_f\}$: $q_0$ é o estado de leitura e $q_f$ o de aceitação;
+  \item $\Sigma = \{\texttt{LPAREN}, \texttt{RPAREN}, \texttt{LBRACE}, \texttt{RBRACE}, \texttt{LBRACK}, \texttt{RBRACK}, \texttt{OUTRO}\}$;
+  \item $\Gamma = \{Z, P, C, B\}$: $Z$ é o marcador de fundo ($Z_0$), $P$ representa \texttt{(}, $C$ representa \texttt{\{} e $B$ representa \texttt{[};
+  \item $F = \{q_f\}$.
+\end{itemize}
+Cada abertura empilha o seu símbolo; cada fechamento só é aceito se o topo da pilha for o símbolo correspondente (então é desempilhado). Ao fim da entrada, a pilha deve conter apenas $Z$.
+
+\section{Estados, transições e operações da pilha}
+
+Notação: $\delta(\text{estado}, \text{entrada}, \text{topo}) = (\text{novo estado}, \text{string que substitui o topo})$, com o topo à esquerda e $X \in \{Z, P, C, B\}$.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Função de transição $\delta$ do autômato com pilha}
+\begin{tabular}{|>{\raggedright\arraybackslash}p{7cm}|>{\raggedright\arraybackslash}p{5cm}|}
+\hline
+\rowcolor{cabecalho} \cab{Transição} & \cab{Operação na pilha} \\ \hline
+$\delta(q_0, \texttt{LPAREN}, X) = (q_0, PX)$ & empilha $P$ \\ \hline
+\rowcolor{faixa} $\delta(q_0, \texttt{LBRACE}, X) = (q_0, CX)$ & empilha $C$ \\ \hline
+$\delta(q_0, \texttt{LBRACK}, X) = (q_0, BX)$ & empilha $B$ \\ \hline
+\rowcolor{faixa} $\delta(q_0, \texttt{RPAREN}, P) = (q_0, \varepsilon)$ & desempilha \\ \hline
+$\delta(q_0, \texttt{RBRACE}, C) = (q_0, \varepsilon)$ & desempilha \\ \hline
+\rowcolor{faixa} $\delta(q_0, \texttt{RBRACK}, B) = (q_0, \varepsilon)$ & desempilha \\ \hline
+$\delta(q_0, \texttt{OUTRO}, X) = (q_0, X)$ & nenhuma \\ \hline
+\rowcolor{faixa} $\delta(q_0, \varepsilon, Z) = (q_f, Z)$ & nenhuma (fim da entrada) \\ \hline
+\end{tabular}
+\fonte
+\end{table}
+
+Qualquer par (entrada, topo) sem transição definida \textbf{rejeita} a cadeia (fechamento sem abertura ou de tipo errado). Se a entrada acaba com topo diferente de $Z$, a cadeia também é rejeitada (delimitadores não fechados).
+
+\section{Implementação e configuração do analisador léxico}
+
+Os tokens são reconhecidos por expressões regulares, em ordem de prioridade:
+\begin{table}[htbp]
+\centering
+\small
+\caption{Especificação dos tokens do analisador léxico}
+\begin{tabular}{|>{\raggedright\arraybackslash}p{4cm}|>{\raggedright\arraybackslash}p{8cm}|}
+\hline
+\rowcolor{cabecalho} \cab{Token} & \cab{Padrão} \\ \hline
+\texttt{PALAVRA\_CHAVE} & if, else, while, for, return, int, float, void \\ \hline
+\rowcolor{faixa} \texttt{NUM} & \verb|\d+(\.\d+)?| \\ \hline
+\texttt{ID} & \verb|[A-Za-z_]\w*| \\ \hline
+\rowcolor{faixa} \texttt{STRING} & \verb|"[^"\n]*"| \\ \hline
+\texttt{OP} & \verb~== != <= >= && || + - * / % = < > !~ \\ \hline
+\rowcolor{faixa} \texttt{LPAREN}, \texttt{RPAREN} & \verb|(| \quad \verb|)| \\ \hline
+\texttt{LBRACE}, \texttt{RBRACE} & \verb|{| \quad \verb|}| \\ \hline
+\rowcolor{faixa} \texttt{LBRACK}, \texttt{RBRACK} & \verb|[| \quad \verb|]| \\ \hline
+\texttt{PONTUACAO} & \verb|;| \quad \verb|,| \\ \hline
+\end{tabular}
+\fonte
+\end{table}
+Espaços e comentários \texttt{//} são descartados. Um caractere fora da especificação gera \textbf{erro léxico}. Como a verificação é feita sobre tokens, delimitadores dentro de strings e comentários não são contados.
+
+Fluxo: \emph{texto} $\rightarrow$ lexer $\rightarrow$ tokens $\rightarrow$ (tipos mapeados para $\Sigma$) $\rightarrow$ PDA $\rightarrow$ aceita/rejeita.
+
+\subsection*{Execução}
+\begin{Verbatim}[fontsize=\small]
+cd simulador
+python3 simulador.py "if (a) { b[0] = 1; }"
+python3 simulador.py -f programa.txt
+python3 simulador.py --af 2 "((()))"
+python3 simulador.py -q "{(})"
+python3 -m unittest -v
+\end{Verbatim}
+O código de saída é 0 quando a cadeia é aceita e 1 quando é rejeitada.
+
+\section{Exemplos de execução}
+
+\subsection*{Entrada válida: \texttt{if (a) \{ b[0] = 1; \}} (trecho)}
+\begin{Verbatim}[fontsize=\scriptsize]
+passo | est | entrada restante                       | pilha | regra
+  0   | q0  | OUTRO LPAREN OUTRO RPAREN LBRACE ...   | Z     | configuracao inicial
+  2   | q0  | OUTRO RPAREN LBRACE OUTRO LBRACK ...  | PZ    | d(q0,LPAREN,Z) = (q0,PZ)
+  4   | q0  | LBRACE OUTRO LBRACK OUTRO RBRACK ...  | Z     | d(q0,RPAREN,P) = (q0,eps)
+  7   | q0  | OUTRO RBRACK OUTRO OUTRO OUTRO RBRACE | BCZ   | d(q0,LBRACK,C) = (q0,BC)
+ 13   | q0  | eps                                    | Z     | d(q0,RBRACE,C) = (q0,eps)
+ 14   | qf  | eps                                    | Z     | d(q0,eps,Z) = (qf,Z)
+Resultado: ACEITA - entrada consumida, pilha vazia, estado final
+\end{Verbatim}
+
+\subsection*{Inválida (tipo errado): \texttt{\{(\})}}
+\begin{Verbatim}[fontsize=\scriptsize]
+0 | q0 | LBRACE LPAREN RBRACE RPAREN | Z   | configuracao inicial
+1 | q0 | LPAREN RBRACE RPAREN        | CZ  | d(q0,LBRACE,Z) = (q0,CZ)
+2 | q0 | RBRACE RPAREN               | PCZ | d(q0,LPAREN,C) = (q0,PC)
+Resultado: REJEITADA - sem transicao d(q0, RBRACE, P):
+           '}' (pos 2) nao fecha o delimitador aberto
+\end{Verbatim}
+
+\subsection*{Inválida (não fechada): \texttt{((}}
+\texttt{REJEITADA --- entrada consumida mas 2 delimitador(es) nao fechado(s)}.
+
+\subsection*{Erro léxico: \texttt{a = 1 @ 2}}
+\texttt{[LEXICO] ERRO: caractere invalido '@' na posicao 6; Resultado: REJEITADA}.
+
+\section{Testes}
+
+O arquivo \texttt{test\_simulador.py} contém 7 testes, todos aprovados (\texttt{Ran 7 tests \ldots\ OK}).
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Casos de teste e resultados}
+\begin{tabular}{|>{\raggedright\arraybackslash}p{7.2cm}|>{\centering\arraybackslash}p{2.6cm}|>{\centering\arraybackslash}p{2.6cm}|}
+\hline
+\rowcolor{cabecalho} \cab{Entrada} & \cab{Esperado} & \cab{Obtido} \\ \hline
+vazia, \verb|()|, \verb|{}|, \verb|[]|, \verb|(())|, \verb|()[]{}|, \verb|{[()]}| & aceita & aceita \\ \hline
+\rowcolor{faixa} \verb|if (a == 1) { b[0] = f(x, y); }| & aceita & aceita \\ \hline
+\verb|while (x < 10) { if (x % 2) { x = x + 1; } }| & aceita & aceita \\ \hline
+\rowcolor{faixa} \verb|int a = 3; // (comentario com (| & aceita & aceita \\ \hline
+\verb|"(" + x| (parêntese em string) & aceita & aceita \\ \hline
+\rowcolor{faixa} \verb|(|, \verb|)|, \verb|(()|, \verb|())|, \verb|}{| & rejeita & rejeita \\ \hline
+\verb|([)]|, \verb|{(})| (tipo/ordem trocados) & rejeita & rejeita \\ \hline
+\rowcolor{faixa} \verb|if (a { b; )|, \verb|f(x))|, \verb|{ while (1) { x = 1; }| & rejeita & rejeita \\ \hline
+5000 \verb|(| + 5000 \verb|)| \;/\; 5000 \verb|(| + 4999 \verb|)| & aceita / rejeita & aceita / rejeita \\ \hline
+\rowcolor{faixa} \verb|a = 1 @ 2| & erro léxico & erro léxico \\ \hline
+\verb|((()))|: AF $k{=}3$ / AF $k{=}2$ / PDA & aceita / rejeita / aceita & aceita / rejeita / aceita \\ \hline
+\end{tabular}
+\fonte
+\end{table}
+
+\section{Comparação com autômato finito e necessidade da pilha}
+
+Um autômato finito tem memória \textbf{finita} (o seu estado). Reconhecer $L$ exige lembrar \emph{quantos} e \emph{quais} delimitadores estão abertos, e esse número é ilimitado.
+
+\paragraph{Prova (lema do bombeamento).} Para qualquer AF com $p$ estados, a cadeia $(^p\,)^p \in L$ tem, em seu prefixo de $p$ aberturas, dois prefixos que levam ao mesmo estado. Bombeando o trecho entre eles obtém-se $(^{p+k}\,)^p \notin L$, que o AF também aceitaria. Logo $L$ não é regular.
+
+\paragraph{Demonstração no simulador.} O módulo \texttt{fa.py} constrói um AF cujos estados são as pilhas de profundidade no máximo $k$ ($\sum_{i=0}^{k} 3^i$ estados mais um estado de erro). Ele funciona até a profundidade $k$, mas \texttt{((()))} com $k=2$ é \textbf{rejeitada} indevidamente (a profundidade 3 exige um estado inexistente), enquanto o PDA a aceita e processa 5000 níveis com os mesmos 2 estados. A pilha fornece memória ilimitada sem aumentar $Q$; aumentar $k$ apenas adia o problema, e o AF cresce exponencialmente.
+
+\paragraph{Papel de cada formalismo.} Na análise léxica, expressões regulares (equivalentes a AFs) bastam para reconhecer cada token. A pilha é necessária apenas na etapa seguinte, quando a estrutura aninhada precisa ser verificada.
+
+\end{document}
